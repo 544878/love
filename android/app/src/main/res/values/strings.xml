@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LoveLog</string>
+    <string name="title_activity_main">LoveLog</string>
+    <string name="package_name">com.nana.levelup</string>
+    <string name="custom_url_scheme">com.nana.levelup</string>
+</resources>
