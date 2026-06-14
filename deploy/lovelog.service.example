@@ -1,0 +1,25 @@
+[Unit]
+Description=LoveLog web and sync service
+After=network.target
+
+[Service]
+Type=simple
+User=lovelog
+Group=lovelog
+WorkingDirectory=/opt/lovelog
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+Environment=LOVELOG_DATA_FILE=/var/lib/lovelog/lovelog.json
+EnvironmentFile=/etc/lovelog/lovelog.env
+ExecStart=/usr/bin/node /opt/lovelog/server/index.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lovelog
+
+[Install]
+WantedBy=multi-user.target

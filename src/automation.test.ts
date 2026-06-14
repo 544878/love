@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   fallbackCompanionMessage,
+  mergeAutomationRefresh,
   nextAutomationDates,
   notificationDate,
   stripMarkdown,
   truncateText,
   weatherSummary
 } from "./automation";
+import { initialData } from "./data";
 
 describe("daily automation helpers", () => {
   it("creates a seven-day cache range across month boundaries", () => {
@@ -39,5 +41,19 @@ describe("daily automation helpers", () => {
     expect(weatherSummary(0)).toBe("晴朗");
     expect(weatherSummary(63)).toBe("有雨");
     expect(fallbackCompanionMessage("2026-06-08", "温柔", "陶陶")).toContain("陶陶");
+  });
+
+  it("keeps newly created reminders when an older async refresh finishes", () => {
+    const custom = {
+      ...initialData.automations[0],
+      id: "custom-reminder",
+      title: "我的提醒"
+    };
+    const current = { ...initialData, automations: [...initialData.automations, custom] };
+    const staleRefresh = { ...initialData, automationRuns: [{ id: "run", ruleId: custom.id, date: "2026-06-12", title: custom.title, body: "ok", status: "generated" as const, generatedAt: "2026-06-12T00:00:00.000Z" }] };
+    const merged = mergeAutomationRefresh(current, staleRefresh);
+
+    expect(merged.automations.some((item) => item.id === custom.id)).toBe(true);
+    expect(merged.automationRuns).toHaveLength(1);
   });
 });

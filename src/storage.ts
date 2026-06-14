@@ -32,7 +32,7 @@ export function normalizeAppData(value: unknown): AppData {
   return {
     ...structuredClone(initialData),
     ...parsed,
-    version: 2,
+    version: 3,
     habits: parsed.habits ?? structuredClone(initialData.habits),
     checkIns: parsed.checkIns ?? [],
     reports: parsed.reports ?? [],
@@ -48,6 +48,15 @@ export function normalizeAppData(value: unknown): AppData {
     sharedCourses: parsed.sharedCourses ?? [],
     feedWishes: parsed.feedWishes ?? [],
     coupleEvents: parsed.coupleEvents ?? [],
+    todos: parsed.todos ?? [],
+    coupleMessages: parsed.coupleMessages ?? [],
+    coupleGames: parsed.coupleGames ?? [],
+    studyMetrics: parsed.studyMetrics ?? [],
+    wordLearningRecords: parsed.wordLearningRecords ?? [],
+    taskTemplates: parsed.taskTemplates ?? [],
+    dailyTaskRecords: parsed.dailyTaskRecords ?? [],
+    dailyStudySummaries: parsed.dailyStudySummaries ?? [],
+    customBadgeGifts: parsed.customBadgeGifts ?? [],
     agentUiState: {
       agent: agentUiState.agent ?? "english",
       chatDate: agentUiState.chatDate || localDate(),
@@ -60,9 +69,10 @@ export function normalizeAppData(value: unknown): AppData {
       enabled: parsed.syncState?.enabled ?? false,
       configured: parsed.syncState?.configured ?? false,
       status: parsed.syncState?.status ?? "signed-out",
-      role: parsed.syncState?.role ?? "owner",
+      role: "member",
       currentUser: parsed.syncState?.currentUser,
       spaceId: parsed.syncState?.spaceId,
+      inviteCode: parsed.syncState?.inviteCode,
       schemaVersion: 3,
       lastPulledAtByClass: parsed.syncState?.lastPulledAtByClass ?? {},
       lastSyncedAt: parsed.syncState?.lastSyncedAt,
@@ -153,7 +163,10 @@ async function writeIndexedDbData(data: AppData): Promise<void> {
 
 export async function loadData(): Promise<AppData> {
   try {
-    const indexed = await readIndexedDbData();
+    const indexed = await Promise.race([
+      readIndexedDbData(),
+      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1500))
+    ]);
     if (indexed) return indexed;
     const legacy = readLocalStorageData();
     const data = legacy ?? structuredClone(initialData);
@@ -258,11 +271,22 @@ async function allPhotos(): Promise<Record<string, string>> {
 }
 
 export async function createBackup(data: AppData): Promise<BackupData> {
-  return { ...normalizeAppData(data), exportedAt: new Date().toISOString(), photos: await allPhotos() };
+  const normalized = normalizeAppData(data);
+  return {
+    ...normalized,
+    settings: {
+      ...normalized.settings,
+      deepSeekApiKey: "",
+      qwenApiKey: "",
+      serperApiKey: ""
+    },
+    exportedAt: new Date().toISOString(),
+    photos: await allPhotos()
+  };
 }
 
 export async function restoreBackup(backup: BackupData): Promise<AppData> {
-  if (![1, 2].includes(Number(backup.version)) || !Array.isArray(backup.habits) || !Array.isArray(backup.checkIns) || !Array.isArray(backup.reports)) {
+  if (![1, 2, 3].includes(Number(backup.version)) || !Array.isArray(backup.habits) || !Array.isArray(backup.checkIns) || !Array.isArray(backup.reports)) {
     throw new Error("这不是有效的成长日记备份");
   }
   await clearPhotos();

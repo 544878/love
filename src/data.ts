@@ -59,15 +59,10 @@ export const defaultAutomations: AutomationRule[] = [
   }
 ];
 
-export const defaultHabits: Habit[] = [
-  { id: "study", name: "英美文学备考", icon: "study", color: "#7b8bf2", unit: "分钟", target: 180, days: [0, 1, 2, 3, 4, 5, 6], createdAt: now },
-  { id: "fitness", name: "变美塑形", icon: "fitness", color: "#ff8a7a", unit: "分钟", target: 40, days: [1, 3, 5, 6], createdAt: now },
-  { id: "beauty", name: "美脸美白护理", icon: "beauty", color: "#f39ac5", unit: "分钟", target: 20, days: [0, 1, 2, 3, 4, 5, 6], createdAt: now },
-  { id: "run", name: "轻体能跑走", icon: "run", color: "#65c6a4", unit: "公里", target: 2, days: [2, 4, 0], createdAt: now }
-];
+export const defaultHabits: Habit[] = [];
 
 export const initialData: AppData = {
-  version: 2,
+  version: 3,
   habits: defaultHabits,
   checkIns: [],
   reports: [],
@@ -94,6 +89,15 @@ export const initialData: AppData = {
   sharedCourses: [],
   feedWishes: [],
   coupleEvents: [],
+  todos: [],
+  coupleMessages: [],
+  coupleGames: [],
+  studyMetrics: [],
+  wordLearningRecords: [],
+  taskTemplates: [],
+  dailyTaskRecords: [],
+  dailyStudySummaries: [],
+  customBadgeGifts: [],
   settings: {
     onboarded: false,
     ownerName: "张洳娜",
@@ -130,6 +134,12 @@ export const initialData: AppData = {
     foodRecentDislikes: "",
     weatherFallbackCity: "天津",
     notificationPermission: "prompt"
+    ,
+    activeProfile: "ru",
+    aiProvider: "deepseek",
+    qwenChatModel: "qwen-max",
+    qwenVisionModel: "qwen-vl-max",
+    dailyStudySummaryEnabled: true
   }
 };
 
@@ -149,7 +159,7 @@ export function buildBadges(data: AppData): Badge[] {
   const foodReports = data.reports.filter((report) => report.breakfast || report.lunch || report.dinner).length;
   const plannerChats = (data.agentConversations ?? []).filter((item) => item.agent === "planner" && item.messages.length > 0).length;
   const values = [
-    ["first", "娜娜启动!", "完成第一份可爱日报", "flower", reports, 1],
+    ["first", "洳的第一天", "完成第一份今日记录", "flower", reports, 1],
     ["streak-3", "小猫爪坚持", "连续打卡 3 天", "sparkle", streak, 3],
     ["streak-7", "一周亮晶晶", "连续认真 7 天", "star", streak, 7],
     ["minutes-300", "学习能量豆", "累计学习/训练 300 分钟", "seed", totalMinutes, 300],

@@ -195,7 +195,7 @@ async function generateCompanionMessages(
   try {
     const answer = await deepSeekText(
       settings,
-      "你是陶陶，给正在准备英语文学学习的娜娜写每日短寄语。只输出严格 JSON 数组，不用 Markdown。每条 35-70 个汉字，不说教、不制造焦虑、不重复。",
+      "你是陶陶，给正在准备英语文学学习的洳写每日短寄语。只输出严格 JSON 数组，不用 Markdown。每条 35-70 个汉字，不说教、不制造焦虑、不重复。",
       [
         `日期：${dates.join(", ")}`,
         `语气依次轮换：${dates.map((_, index) => tones[index % tones.length]).join(", ")}`,
@@ -234,7 +234,7 @@ async function scheduleNotifications(rules: AutomationRule[], runs: AutomationRu
   if (Capacitor.getPlatform() === "android") {
     await LocalNotifications.createChannel({
       id: "nana-daily",
-      name: "娜娜每日提醒",
+      name: "LoveLog 每日提醒",
       description: "天气、陶陶寄语和每日温柔提醒",
       importance: 3,
       visibility: 1,
@@ -263,6 +263,19 @@ async function scheduleNotifications(rules: AutomationRule[], runs: AutomationRu
   });
   if (notifications.length) await LocalNotifications.schedule({ notifications });
   return "granted";
+}
+
+export async function rescheduleCachedNotifications(data: AppData): Promise<AppData> {
+  const today = localDate();
+  const futureRuns = data.automationRuns.filter((item) => item.date >= today);
+  const permission = await scheduleNotifications(data.automations, futureRuns);
+  return {
+    ...data,
+    automationRuns: data.automationRuns.map((item) => futureRuns.some((run) => run.id === item.id)
+      ? { ...item, status: permission === "granted" ? "scheduled" as const : "generated" as const }
+      : item),
+    settings: { ...data.settings, notificationPermission: permission }
+  };
 }
 
 export async function refreshAutomations(data: AppData): Promise<{ data: AppData; warning?: string }> {
@@ -335,5 +348,14 @@ export async function refreshAutomations(data: AppData): Promise<{ data: AppData
         } : {})
       }
     }
+  };
+}
+
+export function mergeAutomationRefresh(current: AppData, refreshed: AppData): AppData {
+  return {
+    ...current,
+    dailyBriefs: refreshed.dailyBriefs,
+    automationRuns: refreshed.automationRuns,
+    settings: { ...current.settings, ...refreshed.settings }
   };
 }
