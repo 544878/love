@@ -19,7 +19,7 @@ export function formatDuration(seconds: number): string {
   return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${rest}` : `${minutes}:${rest}`;
 }
 
-export function startStudyTimer(title: string, note = "", now = new Date()): ActiveStudyTimer {
+export function startStudyTimer(title: string, note = "", now = new Date(), owner: "ru" | "taotao" = "ru"): ActiveStudyTimer {
   const at = now.toISOString();
   return {
     id: `study-timer-${now.getTime()}`,
@@ -28,7 +28,8 @@ export function startStudyTimer(title: string, note = "", now = new Date()): Act
     startedAt: at,
     accumulatedSeconds: 0,
     running: true,
-    updatedAt: at
+    updatedAt: at,
+    owner
   };
 }
 
@@ -64,7 +65,8 @@ export function finishStudyTimer(timer: ActiveStudyTimer, now = new Date()): Stu
     endedAt,
     durationSeconds,
     source: "timer",
-    syncStatus: "local"
+    syncStatus: "local",
+    owner: timer.owner ?? "ru"
   };
 }
 

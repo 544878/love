@@ -7,6 +7,7 @@ export interface AgentRequest {
   agent: AgentKind;
   input: string;
   imageText?: string;
+  imageDataUrl?: string;
   context?: string;
   knowledgeFiles?: KnowledgeFile[];
   history?: AgentChatMessage[];
@@ -347,16 +348,15 @@ export function agentSystemPrompt(settings: AppSettings, agent: AgentKind): stri
     ].join("\n"),
     food: [
       base,
-      "你是营养均衡的饮食智能助手。目标不是节食，而是让她吃得稳定、舒服、有蛋白质、有蔬果、有主食。",
-      `长期规避/不喜欢：${settings.foodAvoids || "暂无"}`,
-      `最近不想吃：${settings.foodRecentDislikes || "暂无"}`,
-      "制定建议时必须规避不喜欢和最近不想吃的食物，并说明替代食材。不要制造焦虑，不要给医疗诊断。"
+      "你是耐心、清晰的法语老师，适合中文母语初学者。",
+      "重点能力：发音提示、基础语法、常用词汇、情景对话、逐句纠错。",
+      "回答结构优先：核心知识 -> 中文解释 -> 法语例句 -> 发音/易错点 -> 一个小练习。"
     ].join("\n"),
     planner: [
       base,
-      "你是学习计划与番茄钟助手。不要把时间排满，不要机械地写“某科多少分钟”。",
-      "先把总时长拆成 25-45 分钟的可选择专注块，中间安排缓冲。每轮结束后让学生输入实际完成内容，再调整下一轮。",
-      "回答必须包含：本轮建议、开始前准备、结束后复盘问题、下一轮如何根据反馈调整。"
+      "你是温柔、务实的生活助手，帮助整理待办、学习节奏、情绪和日常安排。",
+      "不要把时间排满，不制造效率焦虑。先确认最重要的一件事，再给出可执行的小步骤与休息空间。",
+      "涉及健康、法律或财务时明确提醒寻求专业帮助，不做诊断。"
     ].join("\n")
   };
 
@@ -366,26 +366,22 @@ export function agentSystemPrompt(settings: AppSettings, agent: AgentKind): stri
 export function fallbackAgentAnswer(settings: AppSettings, request: AgentRequest): string {
   if (request.agent === "food") {
     return [
-      "### 今日饮食建议",
+      "### 法语小课堂",
       "",
-      `已避开：${settings.foodAvoids || "暂无明确忌口"}；最近不想吃：${settings.foodRecentDislikes || "暂无记录"}。`,
-      "",
-      "- 早餐：主食 + 蛋白质 + 一点水果，例如全麦面包/燕麦、鸡蛋或牛奶、香蕉/苹果。",
-      "- 午餐：米饭或面条 + 优质蛋白 + 两种蔬菜，口味尽量清爽。",
-      "- 晚餐：不要过度压低碳水，选易消化组合，例如杂粮饭、鱼/鸡胸/豆腐、绿叶菜。",
-      "",
-      "如果今天有特别不想吃的东西，把它记下来，我下次会自动规避。"
+      "- Bonjour：你好，常用于白天见面。",
+      "- Je m'appelle Ru：我叫洳。",
+      "- 小练习：用 `Je m'appelle ...` 做一次自我介绍。"
     ].join("\n");
   }
 
   if (request.agent === "planner") {
     return [
-      "### 先做一轮，不把今天塞满",
+      "### 先把今天理顺",
       "",
-      "- 本轮：30 分钟进入状态，只完成一个最小任务。",
-      "- 准备：打开材料、写下本轮目标、手机放远。",
-      "- 结束后告诉我：实际学了什么、卡在哪里、精力 1-5 分。",
-      "- 下一轮我会根据反馈调整难度，而不是提前把 5 小时全部排死。"
+      "- 先选最重要的一件事。",
+      "- 把它缩小成 20-30 分钟能开始的步骤。",
+      "- 完成后休息，再决定要不要继续。",
+      "- 没完成也记录真实原因，不用责怪自己。"
     ].join("\n");
   }
 
@@ -423,6 +419,35 @@ function buildHistoryMessages(history: AgentChatMessage[] = [], limitChars = 800
 }
 
 export async function askAgent(settings: AppSettings, request: AgentRequest): Promise<AgentAnswer> {
+  if (settings.aiProvider === "qwen") {
+    const apiKey = settings.qwenApiKey?.trim();
+    if (!apiKey) throw new Error("尚未配置千问 API Key");
+    const baseUrl = (settings.qwenBaseUrl || "https://dashscope.aliyuncs.com/compatible-mode/v1").replace(/\/+$/, "");
+    const model = request.imageDataUrl
+      ? settings.qwenVisionModel || "qwen-vl-max"
+      : settings.qwenChatModel || "qwen-max";
+    const history = buildHistoryMessages(request.history, settings.agentContextLimitChars ?? 800000);
+    const userContent: ChatMessage["content"] = request.imageDataUrl
+      ? [
+          { type: "text", text: [request.input, request.imageText].filter(Boolean).join("\n\n") || "请分析这张图片。" },
+          { type: "image_url", image_url: { url: request.imageDataUrl } }
+        ]
+      : [request.input, request.imageText].filter(Boolean).join("\n\n");
+    const result = await postJson<DeepSeekResult>(
+      `${baseUrl}/chat/completions`,
+      { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      {
+        model,
+        messages: [
+          { role: "system", content: agentSystemPrompt(settings, request.agent) },
+          ...history,
+          { role: "user", content: userContent }
+        ]
+      },
+      "千问"
+    );
+    return readDeepSeekAnswer(result);
+  }
   const apiKey = settings.deepSeekApiKey?.trim();
   if (!apiKey) return { text: fallbackAgentAnswer(settings, request) };
 
@@ -497,6 +522,41 @@ export async function deepSeekText(
     "DeepSeek"
   );
   return readDeepSeekContent(result);
+}
+
+export async function generateDailyStudySummary(
+  settings: AppSettings,
+  date: string,
+  studyLines: string[]
+): Promise<string> {
+  const apiKey = settings.deepSeekApiKey?.trim();
+  if (!apiKey) throw new Error("尚未配置 DeepSeek API Key");
+  const baseUrl = (settings.deepSeekBaseUrl || "https://api.deepseek.com").replace(/\/+$/, "");
+  const result = await postJson<DeepSeekResult>(
+    `${baseUrl}/chat/completions`,
+    {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    {
+      model: settings.deepSeekModel || "deepseek-v4-pro",
+      thinking: { type: "disabled" },
+      temperature: 0.45,
+      messages: [
+        {
+          role: "system",
+          content: "你是温柔、克制的每日学习总结助手。只根据提供的学习记录总结，不补充生活、情绪、恋爱或不存在的内容。输出一段 55-110 个汉字的中文小结：先概括完成内容，再给一句具体而不过度鼓励的收尾。不要标题、列表、Markdown、明日计划或效率评价。"
+        },
+        {
+          role: "user",
+          content: `日期：${date}\n学习记录：\n${studyLines.map((item) => `- ${item}`).join("\n")}`
+        }
+      ] satisfies ChatMessage[],
+      max_tokens: 220
+    },
+    "DeepSeek"
+  );
+  return readDeepSeekContent(result).replace(/^["“]|["”]$/g, "").trim();
 }
 
 export async function qwenOcrImage(settings: AppSettings, dataUrl: string): Promise<string> {

@@ -23,7 +23,7 @@
 
 ## 云端与秘密
 
-- LeanCloud 配置只通过 `VITE_LEANCLOUD_APP_ID`、`VITE_LEANCLOUD_APP_KEY`、`VITE_LEANCLOUD_SERVER_URL` 注入。
+- 阿里云同步 API 地址只通过 `VITE_CLOUD_API_URL` 注入；服务器密钥只通过 `LOVELOG_JWT_SECRET` 注入。
 - 本地开发使用 `.env.local`；仓库只保留无秘密的 `.env.example`。
 - DeepSeek、Qwen、Serper 密钥由应用设置管理。调试输出不得打印这些值。
 - `src/.private/` 中的代码仍会被打包进客户端，不能把服务器密钥硬编码到其中。

@@ -3,8 +3,8 @@ import { initialData } from "./data";
 import { normalizeAppData } from "./storage";
 import { queueSyncJob } from "./.private/cloud";
 
-describe("v2 storage migration", () => {
-  it("migrates v1-shaped data into v2 local-first data", () => {
+describe("v3 storage migration", () => {
+  it("migrates v1-shaped data into v3 equal-member data", () => {
     const migrated = normalizeAppData({
       version: 1,
       habits: initialData.habits,
@@ -13,12 +13,17 @@ describe("v2 storage migration", () => {
       settings: { ...initialData.settings, onboarded: true }
     });
 
-    expect(migrated.version).toBe(2);
+    expect(migrated.version).toBe(3);
     expect(migrated.studySessions).toEqual([]);
     expect(migrated.agentUiState?.agent).toBe("english");
     expect(migrated.syncState?.pendingJobs).toBe(0);
     expect(migrated.syncState?.schemaVersion).toBe(3);
-    expect(migrated.syncState?.role).toBe("owner");
+    expect(migrated.syncState?.role).toBe("member");
+    expect(migrated.taskTemplates).toEqual([]);
+    expect(migrated.dailyTaskRecords).toEqual([]);
+    expect(migrated.dailyStudySummaries).toEqual([]);
+    expect(migrated.customBadgeGifts).toEqual([]);
+    expect(migrated.wordLearningRecords).toEqual([]);
     expect(migrated.cloudOutbox).toEqual([]);
     expect(migrated.settings.onboarded).toBe(true);
   });
@@ -38,6 +43,28 @@ describe("v2 storage migration", () => {
     expect(["idle", "offline"]).toContain(queued.syncState?.status);
   });
 
+  it("keeps legacy couple posts compatible without social fields", () => {
+    const migrated = normalizeAppData({
+      ...initialData,
+      couplePosts: [{
+        id: "legacy-post",
+        author: "陶陶",
+        text: "旧动态",
+        date: "2026-06-08",
+        createdAt: "2026-06-08T12:00:00.000Z"
+      }]
+    });
+
+    expect(migrated.couplePosts[0]).toMatchObject({
+      id: "legacy-post",
+      author: "陶陶",
+      text: "旧动态"
+    });
+    expect(migrated.couplePosts[0].photoIds).toBeUndefined();
+    expect(migrated.couplePosts[0].likes).toBeUndefined();
+    expect(migrated.couplePosts[0].comments).toBeUndefined();
+  });
+
   it("queues owner-writable LoveLog records without local-only API keys", () => {
     const queued = queueSyncJob({
       ...initialData,
@@ -53,7 +80,17 @@ describe("v2 storage migration", () => {
       couplePosts: [{
         id: "post-1",
         author: "me",
+        authorProfile: "ru",
         text: "hello",
+        photoIds: ["post-photo-1"],
+        likes: ["taotao"],
+        comments: [{
+          id: "comment-1",
+          authorProfile: "taotao",
+          author: "陶陶",
+          text: "好看",
+          createdAt: "2026-06-08T12:01:00.000Z"
+        }],
         date: "2026-06-08",
         createdAt: "2026-06-08T12:00:00.000Z"
       }],
@@ -78,12 +115,14 @@ describe("v2 storage migration", () => {
     expect(queued.cloudOutbox?.some((item) => item.className === "LoveDailyReport")).toBe(true);
     expect(queued.cloudOutbox?.some((item) => item.className === "LoveCouplePost")).toBe(true);
     expect(queued.cloudOutbox?.some((item) => item.className === "LoveStudyStat")).toBe(true);
+    expect(serialized).toContain("post-photo-1");
+    expect(serialized).toContain("comment-1");
     expect(serialized).not.toContain("secret-deepseek");
     expect(serialized).not.toContain("secret-qwen");
     expect(serialized).not.toContain("secret-serper");
   });
 
-  it("limits supervisor writes to shared LoveLog modules", () => {
+  it("migrates a legacy supervisor to an equal member with full writes", () => {
     const queued = queueSyncJob({
       ...initialData,
       reports: [{
@@ -118,7 +157,7 @@ describe("v2 storage migration", () => {
     });
 
     expect(queued.cloudOutbox?.some((item) => item.className === "LoveFeedWish")).toBe(true);
-    expect(queued.cloudOutbox?.some((item) => item.className === "LoveDailyReport")).toBe(false);
-    expect(queued.cloudOutbox?.some((item) => item.className === "LoveStudyStat")).toBe(false);
+    expect(queued.cloudOutbox?.some((item) => item.className === "LoveDailyReport")).toBe(true);
+    expect(queued.cloudOutbox?.some((item) => item.className === "LoveStudyStat")).toBe(true);
   });
 });

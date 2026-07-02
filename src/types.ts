@@ -97,6 +97,13 @@ export interface AppSettings {
   lastLongitude?: number;
   lastLocationName?: string;
   notificationPermission?: "prompt" | "granted" | "denied";
+  activeProfile?: "ru" | "taotao";
+  aiProvider?: "deepseek" | "qwen";
+  qwenChatModel?: string;
+  qwenVisionModel?: string;
+  ownerAvatarPhotoId?: string;
+  partnerAvatarPhotoId?: string;
+  dailyStudySummaryEnabled?: boolean;
 }
 
 export interface KnowledgeChunk {
@@ -121,6 +128,8 @@ export interface AgentChatMessage {
   agent: "english" | "food" | "planner";
   text: string;
   reasoningContent?: string;
+  provider?: "deepseek" | "qwen";
+  model?: string;
   createdAt: string;
 }
 
@@ -194,6 +203,7 @@ export interface StudySession {
   durationSeconds: number;
   source: StudySessionSource;
   syncStatus?: SyncStatus;
+  owner?: "ru" | "taotao";
 }
 
 export interface ActiveStudyTimer {
@@ -204,6 +214,7 @@ export interface ActiveStudyTimer {
   accumulatedSeconds: number;
   running: boolean;
   updatedAt: string;
+  owner?: "ru" | "taotao";
 }
 
 export interface AgentUiState {
@@ -215,13 +226,70 @@ export interface AgentUiState {
   imagePreview?: string;
 }
 
+export type TodoKind = "long" | "short";
+
+export interface TodoItem {
+  id: string;
+  title: string;
+  kind: TodoKind;
+  startDate: string;
+  endDate?: string;
+  completedDates: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoupleChatMessage {
+  id: string;
+  author: string;
+  text: string;
+  type?: "text" | "image";
+  photoId?: string;
+  status?: "sending" | "synced" | "failed";
+  createdAt: string;
+}
+
+export type CoupleGameKind = "qa" | "turtle";
+
+export interface CoupleGameCard {
+  id: string;
+  kind: CoupleGameKind;
+  prompt: string;
+  answer: string;
+  author: string;
+  revealed: boolean;
+  createdAt: string;
+}
+
+export interface StudyMetric {
+  id: string;
+  date: string;
+  kind: "words" | "exercise";
+  title: string;
+  count: number;
+  durationMinutes: number;
+  createdAt: string;
+  owner?: "ru" | "taotao";
+}
+
+export interface WordLearningRecord {
+  id: string;
+  date: string;
+  newWords: number;
+  reviewedWords: number;
+  note: string;
+  owner: "ru" | "taotao";
+  createdAt: string;
+}
+
 export interface SyncState {
   enabled: boolean;
   configured: boolean;
   status: "idle" | "syncing" | "synced" | "failed" | "offline" | "signed-out";
-  role?: "owner" | "supervisor";
+  role?: "member" | "owner" | "supervisor";
   currentUser?: string;
   spaceId?: string;
+  inviteCode?: string;
   schemaVersion?: 3;
   lastPulledAtByClass?: Record<string, string>;
   lastSyncedAt?: string;
@@ -241,12 +309,25 @@ export interface CloudOutboxItem {
 
 export type CoupleEventKind = "game" | "call" | "meet" | "anniversary" | "date" | "custom";
 export type FeedPriority = "normal" | "want" | "urgent";
+export type ProfileId = "ru" | "taotao";
+
+export interface CouplePostComment {
+  id: string;
+  authorProfile: ProfileId;
+  author: string;
+  text: string;
+  createdAt: string;
+}
 
 export interface CouplePost {
   id: string;
   author: string;
+  authorProfile?: ProfileId;
   text: string;
   mood?: string;
+  photoIds?: string[];
+  likes?: ProfileId[];
+  comments?: CouplePostComment[];
   date: string;
   createdAt: string;
 }
@@ -260,6 +341,9 @@ export interface SharedCourse {
   location: string;
   note: string;
   color: string;
+  owner?: ProfileId;
+  weekStart?: string;
+  slotIndex?: number;
   createdAt: string;
 }
 
@@ -271,6 +355,7 @@ export interface FeedWish {
   priority: FeedPriority;
   date: string;
   fulfilled: boolean;
+  status?: "requested" | "accepted" | "delivered";
   createdAt: string;
   updatedAt: string;
 }
@@ -283,12 +368,69 @@ export interface CoupleEvent {
   startTime?: string;
   endTime?: string;
   note: string;
+  author?: string;
+  memoryText?: string;
+  memoryPhotoIds?: string[];
+  memoryUpdatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskTemplate {
+  id: string;
+  owner: "ru" | "taotao";
+  title: string;
+  group: string;
+  unit: string;
+  target: number;
+  days: number[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DailyTaskRecord {
+  id: string;
+  templateId?: string;
+  owner: "ru" | "taotao";
+  date: string;
+  title: string;
+  group: string;
+  unit: string;
+  target: number;
+  value: number;
+  completed: boolean;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DailyStudySummary {
+  id: string;
+  owner: "ru" | "taotao";
+  date: string;
+  text: string;
+  source: "deepseek" | "local";
+  sourceHash: string;
+  generatedAt: string;
+}
+
+export interface CustomBadgeGift {
+  id: string;
+  giver: "ru" | "taotao";
+  receiver: "ru" | "taotao";
+  name: string;
+  description: string;
+  target: number;
+  progress: number;
+  gift: string;
+  completed: boolean;
+  claimed: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface AppData {
-  version: 2;
+  version: 3;
   habits: Habit[];
   checkIns: CheckIn[];
   reports: DailyReport[];
@@ -306,6 +448,15 @@ export interface AppData {
   sharedCourses: SharedCourse[];
   feedWishes: FeedWish[];
   coupleEvents: CoupleEvent[];
+  todos: TodoItem[];
+  coupleMessages: CoupleChatMessage[];
+  coupleGames: CoupleGameCard[];
+  studyMetrics: StudyMetric[];
+  wordLearningRecords: WordLearningRecord[];
+  taskTemplates: TaskTemplate[];
+  dailyTaskRecords: DailyTaskRecord[];
+  dailyStudySummaries: DailyStudySummary[];
+  customBadgeGifts: CustomBadgeGift[];
   settings: AppSettings;
 }
 
