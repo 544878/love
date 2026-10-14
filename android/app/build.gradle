@@ -1,54 +1,71 @@
-apply plugin: 'com.android.application'
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "org.jetbrains.kotlin.plugin.compose"
 
 android {
-    namespace = "com.nana.levelup"
-    compileSdk = rootProject.ext.compileSdkVersion
+    namespace "com.nana.levelup"
+    compileSdk rootProject.ext.compileSdkVersion
+
     defaultConfig {
         applicationId "com.nana.levelup"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        def cloudApi = System.getenv("VITE_CLOUD_API_URL")
+        if (cloudApi == null) {
+            cloudApi = project.findProperty("VITE_CLOUD_API_URL") ?: ""
         }
+        def escaped = cloudApi.toString().replace("\\", "\\\\").replace("\"", "\\\"")
+        buildConfigField "String", "CLOUD_API_URL", "\"${escaped}\""
     }
+
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 }
 
-repositories {
-    flatDir{
-        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
-    }
+configurations.configureEach {
+    exclude group: "org.json", module: "json"
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
-    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
-    implementation project(':capacitor-android')
-    testImplementation "junit:junit:$junitVersion"
-    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    implementation project(':capacitor-cordova-android-plugins')
-}
+    implementation project(":logic")
 
-apply from: 'capacitor.build.gradle'
+    def composeBom = platform("androidx.compose:compose-bom:2025.01.01")
+    implementation composeBom
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.ui:ui-tooling-preview"
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.activity:activity-compose:1.10.1"
+    implementation "androidx.lifecycle:lifecycle-runtime-compose:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7"
+    implementation "androidx.core:core-ktx:1.15.0"
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
 
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    testImplementation "junit:junit:4.13.2"
+    debugImplementation "androidx.compose.ui:ui-tooling"
 }

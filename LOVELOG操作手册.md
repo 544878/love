@@ -1,12 +1,12 @@
 # LoveLog 完整操作手册
 
-本手册适用于 LoveLog 网页版。LoveLog 是一个双人共享的学习、生活和关系记录应用，默认将数据保存在当前设备；登录共享空间后，双方记录才会同步到自建服务器。
+本手册适用于 LoveLog Android 应用。LoveLog 是一个双人共享的学习、生活和关系记录应用，默认将数据保存在当前设备；登录共享空间后，双方记录才会同步到自建服务器。客户端是 Jetpack Compose，应用 ID 仍是 `com.nana.levelup`。端侧识图已经移除。
 
 ## 1. 开始使用
 
 ### 1.1 首次打开
 
-1. 使用 Chrome、Edge、Safari 等现代浏览器打开 LoveLog。
+1. 在 Android 设备上打开 LoveLog。
 2. 点击“开启洳的今日空间”完成初始化。
 3. 进入“设置”，先配置双方姓名、当前使用者和头像。
 4. 如需双方跨设备共享，再配置“云同步”；仅在一台设备使用时可跳过。
@@ -60,7 +60,7 @@
 - 快捷入口可进入学习、日历、成长或互动页面。
 - 当天完成的任务和记录会自动进入相关统计。
 
-浏览器通知需要手动授权。若拒绝授权，应用内记录仍然正常工作。
+系统通知需要手动授权。若拒绝授权，应用内记录仍然正常工作。
 
 ## 4. 学习页面
 
@@ -116,20 +116,20 @@
 
 - 每个助手按日期保存多组对话。
 - 可创建新对话并切换历史会话。
-- 支持 Markdown、表格和数学公式展示。
+- 助手回答以 Markdown 文本显示。数学公式保留 LaTeX 原文，不再做网页公式排版。
 
 ### 5.3 图片和文件
 
-- 图片可使用千问视觉模型识别；未配置千问时会尝试本地 OCR。
+- 识图和端侧 OCR 已移除，不能再从图片提取文字。
 - 文本类文件可进入本地知识库。
-- 知识库文件支持编辑、重新建立索引和移除。
+- 知识库文件可以移除。已保存的对话和文件内容仍按原格式读取。
 
 ### 5.4 AI 配置
 
 在“设置 > AI 学习助手”中配置：
 
 - DeepSeek API Key、Base URL、模型和上下文参数；
-- 千问 API Key、文字模型、视觉模型、OCR、向量、重排和语音参数；
+- 千问 API Key，用于对话、向量和语音；
 - Serper API Key，用于联网搜索；
 - 文件上传、联网搜索、重排检索和语音输出开关。
 
@@ -281,48 +281,19 @@ DeepSeek、千问和 Serper 密钥会在导出时清空。
 
 ### 12.3 清空本机数据
 
-“清空本机全部记录”会删除当前浏览器中的 LoveLog 数据和照片，无法撤销。云端数据不会因此自动删除。
+“清空本机全部记录”会删除这台设备上的 LoveLog 数据和照片，无法撤销。云端数据不会因此自动删除。
 
-## 13. 网页开发与本地运行
+## 13. Android 客户端
 
-环境要求：
+客户端在 `android/`，使用 Kotlin 与 Jetpack Compose。应用 ID 是 `com.nana.levelup`。
 
-- Node.js 当前 LTS；
-- npm；
-- Windows PowerShell、macOS Terminal 或 Linux Shell。
-
-安装依赖：
+构建调试包前设置 `JAVA_HOME` 和 `ANDROID_SDK_ROOT`，云同步地址通过环境变量 `VITE_CLOUD_API_URL` 注入，必须是完整的 `http` 或 `https` 地址。不要把密钥写进源码。
 
 ```powershell
-npm ci
+npm run android:apk
 ```
 
-启动前端开发服务器：
-
-```powershell
-npm run dev
-```
-
-开发环境会把 `/api` 代理到 `http://127.0.0.1:3000`。如需测试云同步，另开终端设置服务端环境变量后运行：
-
-```powershell
-npm run server
-```
-
-运行测试和网页构建：
-
-```powershell
-npm test
-npm run build
-```
-
-预览生产网页：
-
-```powershell
-npm run preview
-```
-
-构建结果位于 `dist/`，该目录不提交 Git。
+业务规则的单元测试在 `logic/`，由 Gradle `:logic:test` 运行。云同步服务仍是 `server/index.mjs`，用 `npm run server` 启动，并需要至少 32 位的 `LOVELOG_JWT_SECRET`。
 
 ## 14. 服务端配置
 
@@ -394,7 +365,7 @@ LoveLog 使用 PWA 缓存。刷新页面仍无变化时：
 
 ### 图片无法上传
 
-检查图片是否过大、浏览器存储空间是否充足，以及服务端反向代理是否允许至少 25 MB 请求体。
+检查图片是否过大，以及服务端反向代理是否允许至少 25 MB 请求体。照片保存在应用私有目录，不再使用浏览器存储。
 
 ### AI 无响应
 
@@ -405,18 +376,16 @@ LoveLog 使用 PWA 缓存。刷新页面仍无变化时：
 先执行：
 
 ```powershell
-npm ci
-npm test
-npm run build
+android\gradlew.bat -p android :logic:test assembleDebug
 ```
 
-不要通过跳过测试或关闭 TypeScript 检查掩盖错误。
+不要通过跳过测试或放宽检查掩盖错误。
 
 ## 17. 隐私与维护约束
 
 - 应用 ID 固定为 `com.nana.levelup`。
 - 不提交 `.env.local`、API Key、Token、签名文件、`google-services.json` 或本机 SDK 路径。
 - 不提交 `node_modules`、`dist`、服务端数据文件、Android 构建目录或 APK。
-- 修改后至少运行 `npm test` 和 `npm run build`。
+- 修改客户端后至少运行 `android\gradlew.bat -p android :logic:test assembleDebug`。
 - 删除任何文件前，必须列出完整路径并获得明确确认。
 - 生产数据文件和用户导出的备份应使用受控权限保存，并建立独立备份策略。

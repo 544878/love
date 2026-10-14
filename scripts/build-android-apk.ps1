@@ -23,9 +23,7 @@ Push-Location $root
 try {
   $sdkPath = $androidSdk -replace "\\", "/"
   Set-Content -Encoding UTF8 -Path "android\local.properties" -Value "sdk.dir=$sdkPath"
-  npm.cmd run android:sync
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  & android\gradlew.bat -p android assembleDebug
+  & android\gradlew.bat -p android :logic:test assembleDebug
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   $artifactDir = Join-Path $root "artifacts\android"
   New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
