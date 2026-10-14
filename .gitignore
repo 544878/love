@@ -31,6 +31,8 @@ dev-server.err
 *.keystore
 **/google-services.json
 
+logic/build/
+
 # Android / Capacitor generated state
 android/.gradle/
 android/build/

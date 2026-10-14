@@ -12,10 +12,9 @@
 
 ## 项目结构
 
-- `src/`：React/TypeScript 业务代码。
-- `src/.private/`：云同步和外部 AI 服务实现。这里的“private”表示内部模块，不代表可存放秘密。
-- `public/`：静态资源。
-- `android/`：Capacitor Android 工程源码。
+- `android/`：Jetpack Compose 客户端，应用 ID `com.nana.levelup`。
+- `logic/`：与界面无关的记录、学习和同步规则，附带单元测试。
+- `server/`：云同步 API。
 - `scripts/`：构建脚本。
 - `artifacts/android/`：本地 APK 产物，仅保留说明文件到 Git。
 - `.tools/android/`：本地 JDK 与 Android SDK，永不提交。
@@ -30,17 +29,12 @@
 
 ## 验证要求
 
-修改后至少执行：
+修改客户端或 `logic/` 后至少执行：
 
 ```powershell
-npm test
-npm run build
+android\gradlew.bat -p android :logic:test assembleDebug
 ```
 
-涉及 Android 时还要执行：
-
-```powershell
-npm run android:apk
-```
+修改云同步服务后，确认 `node server/index.mjs` 能在设置 `LOVELOG_JWT_SECRET` 的情况下启动。
 
 构建失败时记录具体原因，不得通过跳过测试或放宽类型检查掩盖问题。
