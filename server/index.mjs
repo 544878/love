@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { companionChange } from "./companion.mjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const distDir = join(rootDir, "dist");
@@ -58,15 +59,22 @@ async function loadDatabase() {
   }
 }
 
-async function saveDatabase() {
-  const contents = JSON.stringify(database, null, 2);
-  writeQueue = writeQueue.then(async () => {
-    await mkdir(dirname(dataFile), { recursive: true });
-    const temporary = `${dataFile}.tmp`;
-    await writeFile(temporary, contents, { encoding: "utf8", mode: 0o600 });
-    await rename(temporary, dataFile);
-  });
-  return writeQueue;
+function queueDatabaseWrite(write) {
+  const result = writeQueue.then(write);
+  writeQueue = result.catch(() => {});
+  return result;
+}
+
+async function writeDatabase(snapshot) {
+  const contents = JSON.stringify(snapshot, null, 2);
+  await mkdir(dirname(dataFile), { recursive: true });
+  const temporary = `${dataFile}.tmp`;
+  await writeFile(temporary, contents, { encoding: "utf8", mode: 0o600 });
+  await rename(temporary, dataFile);
+}
+
+function saveDatabase() {
+  return queueDatabaseWrite(() => writeDatabase(database));
 }
 
 function signToken(userId) {
@@ -117,7 +125,7 @@ function membership(spaceId, userId) {
 }
 
 function publicSpace(space, userId) {
-  return { id: space.id, role: "member", inviteCode: space.inviteCode };
+  return { id: space.id, role: "member", inviteCode: space.inviteCode, capabilities: { companion: 1 } };
 }
 
 function createSpace(spaceId, userId) {
@@ -219,6 +227,25 @@ async function handleLogin(request, response, headers) {
   }, headers);
 }
 
+async function handleCompanion(request, response, headers, user) {
+  const body = await readJson(request);
+  const spaceId = String(body?.spaceId || "");
+  const result = await queueDatabaseWrite(async () => {
+    const { space } = requireSpace(user, spaceId);
+    const current = database.records[spaceId] || {};
+    const change = companionChange(space, user.id, current, body);
+    if (change.records) {
+      await writeDatabase({
+        ...database,
+        records: { ...database.records, [spaceId]: { ...current, ...change.records } }
+      });
+      Object.assign(database.records[spaceId] ||= {}, change.records);
+    }
+    return change.response;
+  });
+  sendJson(response, 200, result, headers);
+}
+
 async function handlePush(request, response, headers, user) {
   const body = await readJson(request);
   const spaceId = String(body.spaceId || "");
@@ -260,7 +287,7 @@ async function handlePull(request, response, headers, user) {
   const collections = {};
   const spaceRecords = database.records[spaceId] || {};
   for (const [className, permission] of Object.entries(classPermissions)) {
-    if (!permission[0]) continue;
+    if (!permission[0] || (Array.isArray(body.classes) && !body.classes.includes(className))) continue;
     const since = String(cursors[className] || "");
     const records = Object.values(spaceRecords[className] || {})
       .filter((item) => !since || item.updatedAtIso > since)
@@ -351,6 +378,7 @@ createServer(async (request, response) => {
         const { space } = requireSpace(user, String(body.spaceId || ""));
         return sendJson(response, 200, { space: publicSpace(space, user.id) }, headers);
       }
+      if (request.method === "POST" && url.pathname === "/api/companion") return await handleCompanion(request, response, headers, user);
       if (request.method === "POST" && url.pathname === "/api/sync/push") return await handlePush(request, response, headers, user);
       if (request.method === "POST" && url.pathname === "/api/sync/pull") return await handlePull(request, response, headers, user);
       if (request.method === "POST" && url.pathname === "/api/photos") return await handlePhotoUpload(request, response, headers, user);

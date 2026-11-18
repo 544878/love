@@ -1,8 +1,13 @@
+import * as ImagePicker from "expo-image-picker";
 import { useRef, useState, type ComponentRef } from "react";
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { CoupleChatMessage } from "../../../src/types";
 import { useBackup } from "../../lib/backup-state";
-import { Action, color, ui } from "../../lib/ui";
+import { AnniversaryNote } from "../../lib/garden-components";
+import { useGarden } from "../../lib/garden-state";
+import { recordId } from "../../lib/record-id";
+import { visibleShared } from "../../lib/shared-records";
+import { Action, color, radius, ui } from "../../lib/ui";
 
 function showTime(timestamp: string): string {
   const time = new Date(timestamp);
@@ -12,31 +17,45 @@ function showTime(timestamp: string): string {
 }
 
 export default function Chat() {
-  const { state, save, saving } = useBackup();
+  const { state, saving } = useBackup();
+  const garden = useGarden();
+  const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState("");
   const [message, setMessage] = useState("");
   const list = useRef<ComponentRef<typeof ScrollView>>(null);
   if (state.status !== "ready") return null;
 
   const { data } = state;
-  const sender = data.settings.ownerName || "示例A";
-  const recipient = data.settings.partnerName || "示例B";
-  const messages = [...data.coupleMessages].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const sender = garden.session?.username || data.settings.ownerName || "你";
+  const recipient = data.settings.partnerName || "我们俩";
+  const messages = visibleShared(data.coupleMessages, garden.session).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
-  async function send() {
+  async function send(photo?: { id: string; dataUrl: string }) {
     const text = draft.trim();
-    if (!text) return;
-    const createdAt = new Date().toISOString();
+    if (!text && !photo) return;
     const item: CoupleChatMessage = {
-      id: `local-${createdAt}-${data.coupleMessages.length}`, author: sender, type: "text", text, createdAt
+      id: recordId("chat"), author: sender, type: photo ? "image" : "text",
+      text, createdAt: new Date().toISOString(), photoId: photo?.id
     };
     setMessage("");
     try {
-      if (await save({ ...data, coupleMessages: [...data.coupleMessages, { ...item }] })) {
-        setDraft("");
-      }
+      if (await garden.writeShared("coupleMessages", item, photo)) setDraft("");
     } catch {
       setMessage("未能保存消息。请重试。");
+    }
+  }
+
+  async function pickPhoto() {
+    setPicking(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], base64: true, quality: 0.7 });
+      const asset = result.assets?.[0];
+      if (!asset?.base64) return;
+      await send({ id: recordId("photo"), dataUrl: `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}` });
+    } catch {
+      setMessage("未能读取照片。请重试。");
+    } finally {
+      setPicking(false);
     }
   }
 
@@ -72,11 +91,13 @@ export default function Chat() {
             </View>
           );
         })}
+        <AnniversaryNote data={data} />
       </ScrollView>
 
       <View style={styles.composer}>
-        <Text style={ui.muted}>消息仅保存在本机</Text>
+        <Text style={ui.muted}>{garden.session ? (garden.status === "offline" ? "消息待同步" : "共享空间") : "消息仅保存在本机"}</Text>
         <View style={ui.row}>
+          <Action label="照片" disabled={saving || picking} onPress={() => void pickPhoto()} />
           <TextInput
             accessibilityLabel="消息"
             multiline
@@ -87,7 +108,7 @@ export default function Chat() {
             onChangeText={setDraft}
             editable={!saving}
           />
-          <Action label="发送" primary disabled={saving || !draft.trim()} onPress={send} />
+          <Action label="发送" primary disabled={saving || !draft.trim()} onPress={() => void send()} />
         </View>
         {message !== "" && <Text accessibilityLiveRegion="polite" style={ui.muted}>{message}</Text>}
       </View>
@@ -96,17 +117,17 @@ export default function Chat() {
 }
 
 const styles = StyleSheet.create({
-  header: { borderBottomWidth: 1, borderColor: color.line, paddingHorizontal: 22, paddingTop: 24, paddingBottom: 17 },
+  header: { margin: 20, marginBottom: 0, borderRadius: radius.card, backgroundColor: color.soft, padding: 15 },
   contact: { color: color.primary, fontSize: 15, fontWeight: "700", backgroundColor: color.soft, padding: 10, borderRadius: 12 },
   messages: { gap: 18, padding: 22 },
   message: { alignItems: "flex-start", alignSelf: "flex-start", maxWidth: "84%", gap: 5 },
   own: { alignItems: "flex-end", alignSelf: "flex-end" },
-  bubble: { backgroundColor: color.surface, borderColor: color.line, borderWidth: 1, borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
+  bubble: { backgroundColor: color.surface, borderColor: color.line, borderWidth: 1, borderRadius: radius.card, paddingVertical: 10, paddingHorizontal: 14 },
   ownBubble: { backgroundColor: color.soft, borderColor: color.soft },
   image: { width: 140, height: 120 },
   composer: { backgroundColor: color.surface, borderColor: color.line, borderTopWidth: 1, paddingHorizontal: 22, paddingVertical: 12, gap: 5 },
   input: {
     flex: 1, minHeight: 48, maxHeight: 112, paddingHorizontal: 13, paddingVertical: 10,
-    borderRadius: 14, borderColor: color.line, borderWidth: 1, color: color.text, fontSize: 16
+    borderRadius: radius.card, borderColor: color.inputLine, borderWidth: 1, color: color.text, fontSize: 16
   }
 });

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { localDate } from "../../src/date.ts";
+import { progressSchema, spaceIdSchema } from "./companion.ts";
+import { eventSchema, postSchema, wishSchema } from "./shared-records.ts";
 
 const settings = z.looseObject({
   onboarded: z.boolean().default(false),
@@ -12,13 +14,14 @@ const settings = z.looseObject({
   targetMajor: z.string().default("")
 });
 
-const chat = z.looseObject({
+export const chatSchema = z.looseObject({
   id: z.string(),
   author: z.string(),
   text: z.string(),
   createdAt: z.string(),
   type: z.enum(["text", "image"]).optional(),
-  photoId: z.string().optional()
+  photoId: z.string().optional(),
+  gardenSpaceId: spaceIdSchema.optional()
 });
 
 const habit = z.looseObject({
@@ -58,12 +61,12 @@ const backupSchema = z.looseObject({
   dailyBriefs: emptyCollection,
   studySessions: emptyCollection,
   cloudOutbox: emptyCollection,
-  couplePosts: emptyCollection,
+  couplePosts: z.array(postSchema).default([]),
   sharedCourses: emptyCollection,
-  feedWishes: emptyCollection,
-  coupleEvents: emptyCollection,
+  feedWishes: z.array(wishSchema).default([]),
+  coupleEvents: z.array(eventSchema).default([]),
   todos: z.array(todo).default([]),
-  coupleMessages: z.array(chat).default([]),
+  coupleMessages: z.array(chatSchema).default([]),
   coupleGames: emptyCollection,
   studyMetrics: emptyCollection,
   wordLearningRecords: emptyCollection,
@@ -87,6 +90,7 @@ const backupSchema = z.looseObject({
   }).prefault({}),
   settings: settings.prefault({}),
   photos: z.record(z.string(), z.string()).default({}),
+  companions: z.record(spaceIdSchema, progressSchema).optional(),
   exportedAt: z.string().optional()
 });
 

@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { friendlyDate, localDate, parseLocalDate } from "../../src/date";
 import type { CheckIn } from "../../src/types";
 import { BackupPanel } from "../lib/backup-panel";
 import { useBackup } from "../lib/backup-state";
-import { color, ui } from "../lib/ui";
+import { AnniversaryNote, CareShortcut, Habitat, ProgressCard } from "../lib/garden-components";
+import { useGarden } from "../lib/garden-state";
+import { color, Heading, Page, Shortcut, ui } from "../lib/ui";
 
 export default function Today() {
-  const { state, save, saving } = useBackup();
+  const { state, update, saving } = useBackup();
+  const { progress } = useGarden();
   const [message, setMessage] = useState("");
   if (state.status !== "ready") return null;
 
@@ -21,21 +24,22 @@ export default function Today() {
   const report = data.reports.find((item) => item.date === today);
 
   async function toggleHabit(habitId: string, target: number) {
-    const prior = checkIns.find((item) => item.habitId === habitId);
-    const done = !prior?.completed;
     const stamp = new Date().toISOString();
-    const next: CheckIn = {
-      id: prior?.id ?? `${habitId}-${today}`,
-      habitId, date: today, value: done ? target : 0, note: "",
-      completed: done, updatedAt: stamp
-    };
     setMessage("");
     try {
-      await save({
-        ...data,
-        checkIns: prior
-          ? data.checkIns.map((item) => item.id === prior.id ? { ...item, value: next.value, completed: done, updatedAt: stamp } : item)
-          : [...data.checkIns, { ...next }]
+      await update((current) => {
+        const prior = current.checkIns.find((item) => item.date === today && item.habitId === habitId);
+        const done = !prior?.completed;
+        const next: CheckIn = {
+          id: prior?.id ?? `${habitId}-${today}`, habitId, date: today, value: done ? target : 0, note: "",
+          completed: done, updatedAt: stamp
+        };
+        return {
+          ...current,
+          checkIns: prior
+            ? current.checkIns.map((item) => item.id === prior.id ? { ...item, value: next.value, completed: done, updatedAt: stamp } : item)
+            : [...current.checkIns, { ...next }]
+        };
       });
     } catch {
       setMessage("未能保存打卡。请重试。");
@@ -43,11 +47,15 @@ export default function Today() {
   }
 
   return (
-    <ScrollView style={ui.page} contentContainerStyle={ui.content}>
-      <View style={ui.split}>
-        <Text accessibilityRole="header" style={ui.header}>今日</Text>
-        <Text style={ui.muted}>{friendlyDate(today)}</Text>
+    <Page>
+      <Heading title="今日" detail={friendlyDate(today)} />
+      <Habitat />
+      <ProgressCard progress={progress} />
+      <View style={ui.row}>
+        <Shortcut href="/interaction/chat" label="去聊天" detail="双人对话" style={styles.shortcut} />
+        <CareShortcut />
       </View>
+      <AnniversaryNote data={data} />
 
       <View style={styles.hero}>
         <Text style={styles.heroLabel}>今日任务</Text>
@@ -98,15 +106,16 @@ export default function Today() {
       </View>
 
       <BackupPanel data={data} />
-    </ScrollView>
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
+  shortcut: { flex: 1, minWidth: 0 },
   hero: { backgroundColor: color.soft, borderRadius: 24, padding: 22, gap: 12 },
   heroLabel: { color: color.primary, fontSize: 15, fontWeight: "600" },
   total: { color: color.text, fontSize: 27, fontWeight: "700" },
-  track: { height: 8, borderRadius: 4, backgroundColor: "#efc8d5", overflow: "hidden" },
+  track: { height: 8, borderRadius: 4, backgroundColor: color.line, overflow: "hidden" },
   progress: { height: 8, borderRadius: 4, backgroundColor: color.primary },
   habit: { minHeight: 48, borderTopWidth: 1, borderColor: color.line, paddingVertical: 8 },
   pressed: { backgroundColor: color.background },
