@@ -21,7 +21,10 @@ export function ProgressCard({ progress }: { progress?: Progress }) {
       <Text style={ui.section}>一起照顾</Text>
       <Text style={ui.muted}>{progress ? `小院 · ${growthStage(points)}` : "在共享空间领养一只伙伴"}</Text>
     </View>
-    {progress && <Text style={styles.count}>{points} <Text style={ui.muted}>点</Text></Text>}
+    {progress && <View accessible accessibilityLabel={`${points} 点`} style={styles.score}>
+      <Text style={styles.count}>{points}</Text>
+      <Text style={ui.muted}>点</Text>
+    </View>}
   </View>;
 }
 
@@ -44,7 +47,8 @@ export function AnniversaryNote({ data }: { data: StoredBackup }) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, minWidth: 0 },
-  copy: { flex: 1 },
+  copy: { flex: 1, minWidth: 0 },
+  score: { flexDirection: "row", alignItems: "baseline", gap: 5 },
   count: { fontSize: 39, fontWeight: "600", color: color.primary },
   window: {
     height: 187, backgroundColor: color.soft, overflow: "hidden",
