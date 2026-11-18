@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "LoveLog",
+    "slug": "lovelog-expo-prototype",
+    "version": "0.1.0",
+    "scheme": "lovelog-expo-spike",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.nana.levelup"
+    },
+    "ios": {
+      "bundleIdentifier": "com.example.lovelogprototype"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-sqlite", "expo-secure-store"]
+  }
+}
