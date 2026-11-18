@@ -1,6 +1,6 @@
 import { Link, Slot, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { BackupProvider, useBackup } from "../lib/backup-state";
 import { color, ui } from "../lib/ui";
@@ -24,7 +24,7 @@ function AppShell() {
             </View>
           )}
         </View>
-        <View accessibilityRole="navigation" style={styles.navigation}>
+        <View accessibilityRole={Platform.OS === "web" ? "navigation" : undefined} style={styles.navigation}>
           <Link href="/" replace asChild>
             <Pressable aria-current={today ? "page" : undefined} style={StyleSheet.flatten([styles.tab, today && styles.selected])}>
               <Text style={[styles.tabText, today && styles.selectedText]}>今日</Text>

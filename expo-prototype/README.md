@@ -48,4 +48,6 @@ Screenshots and the sample file are under `.expo/evidence/` in this checkout.
 
 `eas.json` defines an internal preview and an iOS simulator profile. Android uses `com.nana.levelup`. The iOS bundle ID `com.example.lovelogprototype` is a placeholder pending confirmation.
 
-Android and iOS builds, signing, simulators, physical devices, and sync are unverified. The machine has the Xcode command line tools but no `simctl` or `adb`. The checks used synthetic data. No EAS remote build ran.
+The Android 15 emulator ran both screens in Expo Go 58.0.5. The system picker imported the synthetic backup, and the native share action exported it. A cold start kept the restored records and photo. The 29 top-level fields matched except for `exportedAt`.
+
+Standalone Android and iOS builds, signing, iOS simulators, physical devices, and sync remain unverified. The installed Android SDK has API 35. Expo SDK 58 requires API 37 for a standalone Android build. No EAS remote build ran.
